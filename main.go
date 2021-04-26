@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
 	"log"
 	"time"
@@ -15,18 +16,32 @@ import (
 )
 
 type Users struct {
-	ID        uint64    `db:"id"`
-	Username  string    `db:"username"`
-	Fullname  string    `db:"fullname"`
-	Secret    string    `db:"secret"`
-	Email     string    `db:"email"`
-	DoB       time.Time `db:"dob"`
-	CreatedAt time.Time `db:"created_at"`
-	UpdatedAt time.Time `db:"updated_at"`
+	ID        uint64         `db:"id"`
+	Username  string         `db:"username"`
+	Fullname  string         `db:"fullname"`
+	Address   sql.NullString `db:"address"`
+	Secret    string         `db:"secret"`
+	Email     string         `db:"email"`
+	DoB       time.Time      `db:"dob"`
+	CreatedAt time.Time      `db:"created_at"`
+	UpdatedAt time.Time      `db:"updated_at"`
 }
 
 func main() {
 	mode := "sqlite3"
+	//InsertDemo(mode)
+	SelectDemo(mode)
+}
+
+func newMySQLDB() (*sqlx.DB, error) {
+	return sqlx.Connect("mysql", "root:root1234@tcp(127.0.0.1:3306)/gojakarta_dqb?charset=utf8mb4&parseTime=true")
+}
+
+func newSQLiteDB() (*sqlx.DB, error) {
+	return sqlx.Connect("sqlite3", "file:sqlite_db/gojakarta_dqb.db?cache=shared")
+}
+
+func InsertDemo(mode string) {
 
 	dialect := goqu.Dialect(mode)
 
@@ -39,8 +54,6 @@ func main() {
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 	}
-
-	//ds := dialect.From("users")
 
 	/*
 
@@ -72,21 +85,36 @@ func main() {
 	//insert into DB
 	var db *sqlx.DB
 	if mode == "mysql" {
-		db, _ = NewMySQLDB()
+		db, _ = newMySQLDB()
 	} else if mode == "sqlite3" {
-		db, _ = NewSQLiteDB()
+		db, _ = newSQLiteDB()
 	}
 	_, err := db.Exec(insertSQL, args...)
 	if err != nil {
 		panic(err)
 	}
-	log.Println("insert successfull")
+	log.Println("insert successful")
 }
 
-func NewMySQLDB() (*sqlx.DB, error) {
-	return sqlx.Connect("mysql", "root:root1234@tcp(127.0.0.1:3306)/gojakarta_dqb?charset=utf8mb4&parseTime=true")
-}
+func SelectDemo(mode string) {
+	dialect := goqu.Dialect(mode)
+	ds := dialect.From("users")
 
-func NewSQLiteDB() (*sqlx.DB, error) {
-	return sqlx.Connect("sqlite3", "file:gojakarta_dqb.db?cache=shared")
+	query, args, _ := ds.ToSQL()
+	fmt.Println(query, args)
+
+	var db *sqlx.DB
+	if mode == "mysql" {
+		db, _ = newMySQLDB()
+	} else if mode == "sqlite3" {
+		db, _ = newSQLiteDB()
+	}
+
+	var result Users
+	err := db.Get(&result, query, args...)
+	if err != nil {
+		panic(err)
+	}
+
+	log.Printf("%+v", result)
 }
